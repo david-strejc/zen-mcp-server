@@ -299,27 +299,25 @@ class OpenAICompatibleProvider(ModelProvider):
             # Check if this is a service_tier=flex failure for OpenAI
             error_str = str(e).lower()
             if (
-                "service_tier" in completion_params 
+                "service_tier" in completion_params
                 and completion_params["service_tier"] == "flex"
                 and self.get_provider_type() == ProviderType.OPENAI
                 and ("service_tier" in error_str or "flex" in error_str or "invalid" in error_str)
             ):
                 # Log the flex tier failure
-                logging.warning(
-                    f"Flex Processing tier failed for {model_name}, retrying with standard tier: {str(e)}"
-                )
-                
+                logging.warning(f"Flex Processing tier failed for {model_name}, retrying with standard tier: {str(e)}")
+
                 # Remove service_tier and retry
                 completion_params_retry = completion_params.copy()
                 del completion_params_retry["service_tier"]
-                
+
                 try:
                     response = self.client.chat.completions.create(**completion_params_retry)
-                    
+
                     # Extract content and usage
                     content = response.choices[0].message.content
                     usage = self._extract_usage(response)
-                    
+
                     return ModelResponse(
                         content=content,
                         usage=usage,
@@ -336,10 +334,12 @@ class OpenAICompatibleProvider(ModelProvider):
                     )
                 except Exception as retry_e:
                     # If retry also fails, raise the retry error
-                    error_msg = f"{self.FRIENDLY_NAME} API error for model {model_name} (after flex fallback): {str(retry_e)}"
+                    error_msg = (
+                        f"{self.FRIENDLY_NAME} API error for model {model_name} (after flex fallback): {str(retry_e)}"
+                    )
                     logging.error(error_msg)
                     raise RuntimeError(error_msg) from retry_e
-            
+
             # For non-flex errors or non-OpenAI providers, raise as before
             error_msg = f"{self.FRIENDLY_NAME} API error for model {model_name}: {str(e)}"
             logging.error(error_msg)

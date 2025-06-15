@@ -659,6 +659,11 @@ OPENAI_API_KEY=your-openai-key    # Enables O3, O3mini, O4-mini, O4-mini-high
 
 **OpenAI Flex Processing:** The server automatically uses OpenAI's [Flex Processing service tier](https://platform.openai.com/docs/guides/flex-processing) for o3 and o3-mini models, providing the same quality outputs at lower costs with slightly higher latency. If Flex Processing is unavailable, the server automatically falls back to the standard tier.
 
+To disable Flex Processing and use standard tier pricing:
+```env
+OPENAI_USE_FLEX_PROCESSING=0  # Set to 0, false, or no to disable (default: enabled)
+```
+
 For detailed configuration options, see the [Advanced Usage Guide](docs/advanced-usage.md).
 
 ### Environment Variables
