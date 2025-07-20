@@ -43,6 +43,7 @@ from tools import (
     ChatTool,
     CodeReviewTool,
     DebugIssueTool,
+    FileRetrieveTool,
     Precommit,
     RefactorTool,
     TestGenTool,
@@ -152,6 +153,7 @@ TOOLS = {
     "testgen": TestGenTool(),  # Comprehensive test generation with edge case coverage
     "refactor": RefactorTool(),  # Intelligent code refactoring suggestions with precise line references
     "tracer": TracerTool(),  # Static call path prediction and control flow analysis
+    "fileretrieve": FileRetrieveTool(),  # Retrieve stored files by reference ID
 }
 
 

@@ -75,7 +75,7 @@ class TestPromptRegression:
 
             # Mock file reading through the centralized method
             with patch.object(tool, "_prepare_file_content_for_prompt") as mock_prepare_files:
-                mock_prepare_files.return_value = ("File content here", ["/path/to/file.py"])
+                mock_prepare_files.return_value = ("File content here", ["/path/to/file.py"], None)
 
                 result = await tool.execute({"prompt": "Analyze this code", "files": ["/path/to/file.py"]})
 

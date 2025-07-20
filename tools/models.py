@@ -51,6 +51,9 @@ class ToolOutput(BaseModel):
     continuation_offer: Optional[ContinuationOffer] = Field(
         None, description="Optional offer for Claude to continue conversation"
     )
+    file_references: Optional[list[dict]] = Field(
+        None, description="Optional list of file references when using summary/reference mode"
+    )
 
 
 class ClarificationRequest(BaseModel):

@@ -75,6 +75,12 @@ class ChatTool(BaseTool):
                     "description": "Enable web search for documentation, best practices, and current information. Particularly useful for: brainstorming sessions, architectural design discussions, exploring industry best practices, working with specific frameworks/technologies, researching solutions to complex problems, or when current documentation and community insights would enhance the analysis.",
                     "default": True,
                 },
+                "file_handling_mode": {
+                    "type": "string",
+                    "enum": ["embedded", "summary", "reference"],
+                    "default": "embedded",
+                    "description": "How to handle file content in responses. 'embedded' includes full content (default), 'summary' returns only summaries to save tokens, 'reference' stores files and returns IDs.",
+                },
                 "continuation_id": {
                     "type": "string",
                     "description": "Thread continuation ID for multi-turn conversations. Can be used to continue conversations across different tools. Only provide this if continuing a previous conversation thread.",
@@ -124,9 +130,13 @@ class ChatTool(BaseTool):
 
         # Add context files if provided (using centralized file handling with filtering)
         if request.files:
-            file_content, processed_files = self._prepare_file_content_for_prompt(
+            file_content, processed_files, file_references = self._prepare_file_content_for_prompt(
                 request.files, request.continuation_id, "Context files"
             )
+
+            # Store file references for response formatting
+            if file_references:
+                self._store_file_references(file_references)
             self._actually_processed_files = processed_files
             if file_content:
                 user_content = f"{user_content}\n\n=== CONTEXT FILES ===\n{file_content}\n=== END CONTEXT ===="

@@ -175,6 +175,12 @@ class Precommit(BaseTool):
                     "description": "Enable web search for documentation, best practices, and current information. Particularly useful for: brainstorming sessions, architectural design discussions, exploring industry best practices, working with specific frameworks/technologies, researching solutions to complex problems, or when current documentation and community insights would enhance the analysis.",
                     "default": True,
                 },
+                "file_handling_mode": {
+                    "type": "string",
+                    "enum": ["embedded", "summary", "reference"],
+                    "default": "embedded",
+                    "description": "How to handle file content in responses. 'embedded' includes full content (default), 'summary' returns only summaries to save tokens, 'reference' stores files and returns IDs.",
+                },
                 "continuation_id": {
                     "type": "string",
                     "description": "Thread continuation ID for multi-turn conversations. Can be used to continue conversations across different tools. Only provide this if continuing a previous conversation thread.",
@@ -411,13 +417,17 @@ class Precommit(BaseTool):
             remaining_tokens = max_tokens - total_tokens
 
             # Use centralized file handling with filtering for duplicate prevention
-            file_content, processed_files = self._prepare_file_content_for_prompt(
+            file_content, processed_files, file_references = self._prepare_file_content_for_prompt(
                 translated_files,
                 request.continuation_id,
                 "Context files",
                 max_tokens=remaining_tokens + 1000,  # Add back the reserve that was calculated
                 reserve_tokens=1000,  # Small reserve for formatting
             )
+
+            # Store file references for response formatting
+            if file_references:
+                self._store_file_references(file_references)
             self._actually_processed_files = processed_files
 
             if file_content:

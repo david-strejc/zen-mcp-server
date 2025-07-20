@@ -11,6 +11,7 @@ from .test_content_validation import ContentValidationTest
 from .test_conversation_chain_validation import ConversationChainValidationTest
 from .test_cross_tool_comprehensive import CrossToolComprehensiveTest
 from .test_cross_tool_continuation import CrossToolContinuationTest
+from .test_file_handling_modes import TestFileHandlingModes
 from .test_line_number_validation import LineNumberValidationTest
 from .test_logs_validation import LogsValidationTest
 from .test_model_thinking_config import TestModelThinkingConfig
@@ -46,6 +47,7 @@ TEST_REGISTRY = {
     "refactor_validation": RefactorValidationTest,
     "conversation_chain_validation": ConversationChainValidationTest,
     "xai_models": XAIModelsTest,
+    "file_handling_modes": TestFileHandlingModes,
     # "o3_pro_expensive": O3ProExpensiveTest,  # COMMENTED OUT - too expensive to run by default
 }
 
@@ -70,5 +72,6 @@ __all__ = [
     "RefactorValidationTest",
     "ConversationChainValidationTest",
     "XAIModelsTest",
+    "TestFileHandlingModes",
     "TEST_REGISTRY",
 ]

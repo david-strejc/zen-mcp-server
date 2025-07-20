@@ -122,6 +122,12 @@ class RefactorTool(BaseTool):
                     "enum": ["minimal", "low", "medium", "high", "max"],
                     "description": "Thinking depth: minimal (0.5% of model max), low (8%), medium (33%), high (67%), max (100% of model max)",
                 },
+                "file_handling_mode": {
+                    "type": "string",
+                    "enum": ["embedded", "summary", "reference"],
+                    "default": "embedded",
+                    "description": "How to handle file content in responses. 'embedded' includes full content (default), 'summary' returns only summaries to save tokens, 'reference' stores files and returns IDs.",
+                },
                 "continuation_id": {
                     "type": "string",
                     "description": (
@@ -330,13 +336,17 @@ class RefactorTool(BaseTool):
         # Use standard file content preparation with dynamic token budget and line numbers
         try:
             logger.debug(f"[REFACTOR] Preparing file content for {len(examples_to_process)} style examples")
-            content, processed_files = self._prepare_file_content_for_prompt(
+            content, processed_files, file_references = self._prepare_file_content_for_prompt(
                 examples_to_process,
                 continuation_id,
                 "Style guide examples",
                 max_tokens=style_examples_budget,
                 reserve_tokens=1000,
             )
+
+            # Store file references for response formatting
+            if file_references:
+                self._store_file_references(file_references)
             # Store processed files for tracking - style examples are tracked separately from main code files
 
             # Determine how many files were actually included
@@ -479,9 +489,13 @@ class RefactorTool(BaseTool):
 
         # Use centralized file processing logic for main code files (with line numbers enabled)
         logger.debug(f"[REFACTOR] Preparing {len(code_files_to_process)} code files for analysis")
-        code_content, processed_files = self._prepare_file_content_for_prompt(
+        code_content, processed_files, file_references = self._prepare_file_content_for_prompt(
             code_files_to_process, continuation_id, "Code to analyze", max_tokens=remaining_tokens, reserve_tokens=2000
         )
+
+        # Store file references for response formatting
+        if file_references:
+            self._store_file_references(file_references)
         self._actually_processed_files = processed_files
 
         if code_content:

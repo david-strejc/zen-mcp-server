@@ -232,7 +232,7 @@ TEMPERATURE_ANALYTICAL = 0.2  # For code review, debugging
         temp_dir, config_path = temp_repo
 
         # Test the centralized file preparation method directly
-        file_content, processed_files = tool._prepare_file_content_for_prompt(
+        file_content, processed_files, file_references = tool._prepare_file_content_for_prompt(
             [config_path],
             None,
             "Test files",

@@ -36,6 +36,7 @@ from utils.conversation_memory import (
     get_conversation_file_list,
     get_thread,
 )
+from utils.file_storage import FileReference, FileStorage
 from utils.file_utils import read_file_content, read_files, translate_path_for_environment
 
 from .models import SPECIAL_STATUS_MODELS, ContinuationOffer, ToolOutput
@@ -85,6 +86,13 @@ class ToolRequest(BaseModel):
             "additional findings, or answers to follow-up questions. Can be used across different tools."
         ),
     )
+    file_handling_mode: Optional[Literal["embedded", "summary", "reference"]] = Field(
+        "embedded",
+        description=(
+            "How to handle file content in responses. 'embedded' includes full content (default), "
+            "'summary' returns only summaries to save tokens, 'reference' stores files and returns IDs."
+        ),
+    )
 
 
 class BaseTool(ABC):
@@ -106,6 +114,8 @@ class BaseTool(ABC):
         self.name = self.get_name()
         self.description = self.get_description()
         self.default_temperature = self.get_default_temperature()
+        # Initialize file storage
+        self.file_storage = FileStorage()
         # Tool initialization complete
 
     @abstractmethod
@@ -545,7 +555,8 @@ class BaseTool(ABC):
         reserve_tokens: int = 1_000,
         remaining_budget: Optional[int] = None,
         arguments: Optional[dict] = None,
-    ) -> tuple[str, list[str]]:
+        file_handling_mode: Optional[str] = None,
+    ) -> tuple[str, list[str], Optional[list[FileReference]]]:
         """
         Centralized file processing for tool prompts.
 
@@ -553,6 +564,7 @@ class BaseTool(ABC):
         1. Filter out files already embedded in conversation history
         2. Read content of only new files
         3. Generate informative note about skipped files
+        4. Handle different file handling modes (embedded, summary, reference)
 
         Args:
             request_files: List of files requested for current tool execution
@@ -562,15 +574,17 @@ class BaseTool(ABC):
             reserve_tokens: Tokens to reserve for additional prompt content (default 1K)
             remaining_budget: Remaining token budget after conversation history (from server.py)
             arguments: Original tool arguments (used to extract _remaining_tokens if available)
+            file_handling_mode: How to handle files - "embedded" (default), "summary", or "reference"
 
         Returns:
-            tuple[str, list[str]]: (formatted_file_content, actually_processed_files)
+            tuple[str, list[str], Optional[list[FileReference]]]:
                 - formatted_file_content: Formatted file content string ready for prompt inclusion
                 - actually_processed_files: List of individual file paths that were actually read and embedded
                   (directories are expanded to individual files)
+                - file_references: List of FileReference objects if mode is "summary" or "reference"
         """
         if not request_files:
-            return "", []
+            return "", [], None
 
         # Note: Even if conversation history is already embedded, we still need to process
         # any NEW files that aren't in the conversation history yet. The filter_new_files
@@ -777,11 +791,196 @@ class BaseTool(ABC):
             else:
                 logger.debug(f"[FILES] {self.name}: No skipped files to note")
 
+        # Determine file handling mode
+        if file_handling_mode is None:
+            # Try to get from arguments
+            args_to_use = arguments or getattr(self, "_current_arguments", {})
+            file_handling_mode = args_to_use.get("file_handling_mode", "embedded")
+
+        # Handle different file modes
+        file_references = None
+
+        if file_handling_mode == "embedded":
+            # Default behavior - return full content
+            result = "".join(content_parts) if content_parts else ""
+            logger.debug(
+                f"[FILES] {self.name}: _prepare_file_content_for_prompt returning {len(result)} chars, {len(actually_processed_files)} processed files"
+            )
+            return result, actually_processed_files, None
+
+        elif file_handling_mode in ["summary", "reference"]:
+            # Store files and get references
+            files_content = {}
+            for file_path in actually_processed_files:
+                # Read individual file content
+                file_content, _ = read_file_content(file_path)
+                if file_content:
+                    files_content[file_path] = file_content
+
+            # Store files and get references
+            file_references = self._store_files_for_reference(files_content, continuation_id)
+
+            if file_handling_mode == "summary":
+                # Return summaries in the prompt for AI to analyze
+                summary_parts = []
+                summary_parts.append("\n=== FILE SUMMARIES ===\n")
+                summary_parts.append("The following files have been stored for analysis:\n\n")
+
+                for ref in file_references:
+                    summary_parts.append(f"📄 {ref.file_path}\n")
+                    summary_parts.append(f"   Summary: {ref.summary}\n")
+                    summary_parts.append(f"   Reference ID: {ref.reference_id}\n")
+                    summary_parts.append(f"   Size: {ref.size:,} bytes\n\n")
+
+                summary_parts.append("=== END FILE SUMMARIES ===\n")
+
+                # For summary mode, still include full content for AI analysis
+                # but indicate that Claude will only see summaries
+                full_prompt_parts = content_parts + [
+                    "\n\nNOTE: The above files are provided for your analysis. "
+                    + "Claude will only receive file summaries in the response, not the full content.\n"
+                ]
+
+                result = "".join(full_prompt_parts) if full_prompt_parts else ""
+                logger.debug(
+                    f"[FILES] {self.name}: Summary mode - stored {len(file_references)} files, returning {len(result)} chars for AI analysis"
+                )
+                return result, actually_processed_files, file_references
+
+            else:  # reference mode
+                # Only return reference information
+                ref_parts = []
+                ref_parts.append("\n=== FILE REFERENCES ===\n")
+                ref_parts.append(f"The following {len(file_references)} files have been stored:\n\n")
+
+                for ref in file_references:
+                    ref_parts.append(f"- {ref.file_path} (ID: {ref.reference_id})\n")
+
+                ref_parts.append("\n=== END FILE REFERENCES ===\n")
+                ref_parts.append(
+                    "\nNOTE: Full file contents are stored and can be retrieved using the reference IDs.\n"
+                )
+
+                # Still include full content for AI but with a note
+                full_prompt_parts = content_parts + [
+                    "\n\nNOTE: The above files are provided for your analysis. "
+                    + "Claude will only receive file reference IDs in the response, not the content.\n"
+                ]
+
+                result = "".join(full_prompt_parts) if full_prompt_parts else ""
+                logger.debug(f"[FILES] {self.name}: Reference mode - stored {len(file_references)} files")
+                return result, actually_processed_files, file_references
+
+        # Default fallback
         result = "".join(content_parts) if content_parts else ""
-        logger.debug(
-            f"[FILES] {self.name}: _prepare_file_content_for_prompt returning {len(result)} chars, {len(actually_processed_files)} processed files"
-        )
-        return result, actually_processed_files
+        return result, actually_processed_files, None
+
+    def _store_file_references(self, file_references: Optional[list[FileReference]]) -> None:
+        """Store file references for later use in response."""
+        if file_references:
+            self._current_file_references = file_references
+
+    def _generate_file_summary(self, file_path: str, content: str) -> str:
+        """
+        Generate a summary for a file based on its content.
+
+        Args:
+            file_path: Path to the file
+            content: File content
+
+        Returns:
+            str: Brief summary of the file
+        """
+        import os
+
+        # Get file extension and name
+        basename = os.path.basename(file_path)
+        _, ext = os.path.splitext(basename)
+
+        # Count lines and estimate complexity
+        lines = content.split("\n")
+        line_count = len(lines)
+
+        # Determine file type
+        file_type = "file"
+        if ext in [".py"]:
+            file_type = "Python module"
+            # Count functions and classes
+            import_count = sum(1 for line in lines if line.strip().startswith(("import ", "from ")))
+            class_count = sum(1 for line in lines if line.strip().startswith("class "))
+            func_count = sum(1 for line in lines if line.strip().startswith("def "))
+            summary = f"{file_type} with {line_count} lines, {import_count} imports, {class_count} classes, {func_count} functions"
+        elif ext in [".js", ".ts", ".jsx", ".tsx"]:
+            file_type = f"JavaScript/TypeScript {ext} file"
+            summary = f"{file_type} with {line_count} lines"
+        elif ext in [".java"]:
+            file_type = "Java source file"
+            class_count = sum(1 for line in lines if "class " in line and "{" in line)
+            summary = f"{file_type} with {line_count} lines, {class_count} classes"
+        elif ext in [".cpp", ".c", ".h", ".hpp"]:
+            file_type = "C/C++ source file"
+            summary = f"{file_type} with {line_count} lines"
+        elif ext in [".go"]:
+            file_type = "Go source file"
+            func_count = sum(1 for line in lines if line.strip().startswith("func "))
+            summary = f"{file_type} with {line_count} lines, {func_count} functions"
+        elif ext in [".rs"]:
+            file_type = "Rust source file"
+            fn_count = sum(1 for line in lines if line.strip().startswith("fn "))
+            summary = f"{file_type} with {line_count} lines, {fn_count} functions"
+        elif ext in [".md"]:
+            file_type = "Markdown documentation"
+            # Count headers
+            header_count = sum(1 for line in lines if line.strip().startswith("#"))
+            summary = f"{file_type} with {line_count} lines, {header_count} sections"
+        elif ext in [".json"]:
+            file_type = "JSON data file"
+            summary = f"{file_type} with {line_count} lines"
+        elif ext in [".yaml", ".yml"]:
+            file_type = "YAML configuration"
+            summary = f"{file_type} with {line_count} lines"
+        elif ext in [".txt"]:
+            file_type = "Text file"
+            word_count = len(content.split())
+            summary = f"{file_type} with {line_count} lines, ~{word_count} words"
+        else:
+            summary = f"{basename}: {line_count} lines"
+
+        return summary
+
+    def _store_files_for_reference(
+        self, files_content: dict[str, str], continuation_id: Optional[str] = None
+    ) -> list[FileReference]:
+        """
+        Store files and return references.
+
+        Args:
+            files_content: Dict of file_path -> content
+            continuation_id: Optional thread ID for context
+
+        Returns:
+            list[FileReference]: List of stored file references
+        """
+        references = []
+
+        for file_path, content in files_content.items():
+            # Generate summary
+            summary = self._generate_file_summary(file_path, content)
+
+            # Store file
+            metadata = {
+                "tool": self.name,
+                "continuation_id": continuation_id,
+            }
+
+            file_ref = self.file_storage.store_file(
+                file_path=file_path, content=content, summary=summary, metadata=metadata
+            )
+
+            references.append(file_ref)
+            logger.debug(f"[FILES] Stored file {file_path} with reference {file_ref.reference_id}")
+
+        return references
 
     def get_websearch_instruction(self, use_websearch: bool, tool_specific: Optional[str] = None) -> str:
         """
@@ -1187,7 +1386,11 @@ When recommending searches, be specific about what information you need and why 
                 # Parse response to check for clarification requests or format output
                 # Pass model info for conversation tracking
                 model_info = {"provider": provider, "model_name": model_name, "model_response": model_response}
-                tool_output = self._parse_response(raw_text, request, model_info)
+
+                # Get file references if they were stored
+                file_references = getattr(self, "_current_file_references", None)
+
+                tool_output = self._parse_response(raw_text, request, model_info, file_references)
                 logger.info(f"✅ {self.name} tool completed successfully")
 
             else:
@@ -1252,7 +1455,13 @@ When recommending searches, be specific about what information you need and why 
             )
             return [TextContent(type="text", text=error_output.model_dump_json())]
 
-    def _parse_response(self, raw_text: str, request, model_info: Optional[dict] = None) -> ToolOutput:
+    def _parse_response(
+        self,
+        raw_text: str,
+        request,
+        model_info: Optional[dict] = None,
+        file_references: Optional[list[FileReference]] = None,
+    ) -> ToolOutput:
         """
         Parse the raw response and check for clarification requests.
 
@@ -1263,6 +1472,7 @@ When recommending searches, be specific about what information you need and why 
             raw_text: The raw text response from the model
             request: The original request for context
             model_info: Optional dict with model metadata
+            file_references: Optional list of FileReference objects for summary/reference modes
 
         Returns:
             ToolOutput: Standardized output object
@@ -1319,7 +1529,9 @@ When recommending searches, be specific about what information you need and why 
             logger.debug(
                 f"Creating continuation offer for {self.name} with {continuation_offer['remaining_turns']} turns remaining"
             )
-            return self._create_continuation_offer_response(formatted_content, continuation_offer, request, model_info)
+            return self._create_continuation_offer_response(
+                formatted_content, continuation_offer, request, model_info, file_references
+            )
         else:
             logger.debug(f"No continuation offer created for {self.name} - max turns reached")
 
@@ -1366,11 +1578,17 @@ When recommending searches, be specific about what information you need and why 
             if model_name:
                 metadata["model_used"] = model_name
 
+        # Add file references if in summary/reference mode
+        file_refs_for_output = None
+        if file_references:
+            file_refs_for_output = [ref.to_dict() for ref in file_references]
+
         return ToolOutput(
             status="success",
             content=formatted_content,
             content_type=content_type,
             metadata=metadata,
+            file_references=file_refs_for_output,
         )
 
     def _check_continuation_opportunity(self, request) -> Optional[dict]:
@@ -1422,7 +1640,12 @@ When recommending searches, be specific about what information you need and why 
             return None
 
     def _create_continuation_offer_response(
-        self, content: str, continuation_data: dict, request, model_info: Optional[dict] = None
+        self,
+        content: str,
+        continuation_data: dict,
+        request,
+        model_info: Optional[dict] = None,
+        file_references: Optional[list[FileReference]] = None,
     ) -> ToolOutput:
         """
         Create a response offering Claude the opportunity to continue conversation.
@@ -1431,6 +1654,8 @@ When recommending searches, be specific about what information you need and why 
             content: The main response content
             continuation_data: Dict containing remaining_turns and tool_name
             request: Original request for context
+            model_info: Optional dict with model metadata
+            file_references: Optional list of FileReference objects
 
         Returns:
             ToolOutput configured with continuation offer
@@ -1496,12 +1721,18 @@ When recommending searches, be specific about what information you need and why 
                 if model_name:
                     metadata["model_used"] = model_name
 
+            # Add file references if in summary/reference mode
+            file_refs_for_output = None
+            if file_references:
+                file_refs_for_output = [ref.to_dict() for ref in file_references]
+
             return ToolOutput(
                 status="continuation_available",
                 content=content,
                 content_type="markdown",
                 continuation_offer=continuation_offer,
                 metadata=metadata,
+                file_references=file_refs_for_output,
             )
 
         except Exception as e:

@@ -208,6 +208,7 @@ class TestComprehensive(unittest.TestCase):
                 mock_prepare.return_value = (
                     "Mocked test content",
                     [temp_files["small_test"], temp_files["large_test"]],
+                    None,
                 )
 
                 # Test with available tokens
@@ -227,7 +228,7 @@ class TestComprehensive(unittest.TestCase):
             mock_filter.return_value = [temp_files["large_test"], temp_files["small_test"]]
 
             with patch.object(tool, "_prepare_file_content_for_prompt") as mock_prepare:
-                mock_prepare.return_value = ("test content", [temp_files["small_test"], temp_files["large_test"]])
+                mock_prepare.return_value = ("test content", [temp_files["small_test"], temp_files["large_test"]], None)
 
                 tool._process_test_examples(
                     [temp_files["large_test"], temp_files["small_test"]], None, available_tokens=50000
@@ -247,7 +248,7 @@ class TestComprehensive(unittest.TestCase):
         request = TestGenRequest(files=[temp_files["code_file"]], prompt="Test the calculator functions")
 
         with patch.object(tool, "_prepare_file_content_for_prompt") as mock_prepare:
-            mock_prepare.return_value = ("mocked file content", [temp_files["code_file"]])
+            mock_prepare.return_value = ("mocked file content", [temp_files["code_file"]], None)
 
             prompt = await tool.prepare_prompt(request)
 
@@ -266,7 +267,7 @@ class TestComprehensive(unittest.TestCase):
         )
 
         with patch.object(tool, "_prepare_file_content_for_prompt") as mock_prepare:
-            mock_prepare.return_value = ("mocked content", [temp_files["code_file"]])
+            mock_prepare.return_value = ("mocked content", [temp_files["code_file"]], None)
 
             with patch.object(tool, "_process_test_examples") as mock_process:
                 mock_process.return_value = ("test examples content", "Note: examples included")
@@ -331,7 +332,7 @@ class TestComprehensive(unittest.TestCase):
                 mock_process.return_value = ("test content", "")
 
                 with patch.object(tool, "_prepare_file_content_for_prompt") as mock_prepare:
-                    mock_prepare.return_value = ("code content", ["/tmp/test.py"])
+                    mock_prepare.return_value = ("code content", ["/tmp/test.py"], None)
 
                     request = TestGenRequest(
                         files=["/tmp/test.py"], prompt="Test prompt", test_examples=["/tmp/example.py"]
@@ -351,7 +352,7 @@ class TestComprehensive(unittest.TestCase):
     async def test_continuation_support(self, tool, temp_files):
         """Test continuation ID support"""
         with patch.object(tool, "_prepare_file_content_for_prompt") as mock_prepare:
-            mock_prepare.return_value = ("code content", [temp_files["code_file"]])
+            mock_prepare.return_value = ("code content", [temp_files["code_file"]], None)
 
             request = TestGenRequest(
                 files=[temp_files["code_file"]], prompt="Continue testing", continuation_id="test-thread-123"
@@ -375,7 +376,7 @@ class TestComprehensive(unittest.TestCase):
         request = TestGenRequest(files=[temp_files["code_file"]], prompt="Generate tests")
 
         with patch.object(tool, "_prepare_file_content_for_prompt") as mock_prepare:
-            mock_prepare.return_value = ("code content", [temp_files["code_file"]])
+            mock_prepare.return_value = ("code content", [temp_files["code_file"]], None)
 
             import asyncio
 
@@ -402,7 +403,7 @@ class TestComprehensive(unittest.TestCase):
 
         def capture_prepare_calls(files, *args, **kwargs):
             captured_calls.append(("prepare", files))
-            return ("mocked content", files)
+            return ("mocked content", files, None)
 
         with patch.object(tool, "_prepare_file_content_for_prompt", side_effect=capture_prepare_calls):
             await tool.prepare_prompt(request)
@@ -430,7 +431,7 @@ class TestComprehensive(unittest.TestCase):
         )
 
         with patch.object(tool, "_prepare_file_content_for_prompt") as mock_prepare:
-            mock_prepare.return_value = ("mocked content", [temp_files["code_file"], temp_files["large_test"]])
+            mock_prepare.return_value = ("mocked content", [temp_files["code_file"], temp_files["large_test"]], None)
 
             await tool.prepare_prompt(request)
 
@@ -464,7 +465,7 @@ class TestComprehensive(unittest.TestCase):
 
         def capture_prepare_calls(files, *args, **kwargs):
             captured_calls.append(("prepare", files))
-            return ("mocked content", files)
+            return ("mocked content", files, None)
 
         with patch.object(tool, "_prepare_file_content_for_prompt", side_effect=capture_prepare_calls):
             await tool.prepare_prompt(request)
