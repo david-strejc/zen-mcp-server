@@ -21,7 +21,7 @@ from pydantic import Field
 
 from config import TEMPERATURE_ANALYTICAL
 from systemprompts import TESTGEN_PROMPT
-from utils.file_utils import translate_file_paths
+from utils.file_utils import read_file_content
 
 from .base import BaseTool, ToolRequest
 
@@ -177,9 +177,9 @@ class TestGenTool(BaseTool):
             logger.info(f"[TESTGEN] All {len(test_examples)} test examples already in conversation history")
             return "", ""
 
-        # Translate file paths for Docker environment before accessing files
-        translated_examples = translate_file_paths(examples_to_process)
-        logger.debug(f"[TESTGEN] Translated {len(examples_to_process)} file paths for container access")
+        # Use the file paths directly (no translation needed anymore)
+        translated_examples = examples_to_process
+        logger.debug(f"[TESTGEN] Processing {len(examples_to_process)} test example files")
 
         # Calculate token budget for test examples (25% of available tokens, or fallback)
         if available_tokens:

@@ -17,7 +17,7 @@ if TYPE_CHECKING:
     from tools.models import ToolModelCategory
 
 from systemprompts import PRECOMMIT_PROMPT
-from utils.file_utils import translate_file_paths, translate_path_for_environment
+from utils.file_utils import read_file_content
 from utils.git_utils import find_git_repositories, get_git_status, run_git_command
 from utils.token_utils import estimate_tokens
 
@@ -229,17 +229,9 @@ class Precommit(BaseTool):
 
             raise ValueError(f"MCP_SIZE_CHECK:{ToolOutput(**size_check).model_dump_json()}")
 
-        # Translate the path and files if running in Docker
-        translated_path = translate_path_for_environment(request.path)
-        translated_files = translate_file_paths(request.files)
-
-        # Check if the path translation resulted in an error path
-        if translated_path.startswith("/inaccessible/"):
-            raise ValueError(
-                f"The path '{request.path}' is not accessible from within the Docker container. "
-                f"The Docker container can only access files within the mounted workspace. "
-                f"Please ensure the path is within the mounted directory or adjust your Docker volume mounts."
-            )
+        # Use the path directly (no translation needed anymore)
+        translated_path = request.path
+        translated_files = request.files if request.files else []
 
         # Find all git repositories
         repositories = find_git_repositories(translated_path, request.max_depth)

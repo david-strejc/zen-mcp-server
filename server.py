@@ -171,7 +171,7 @@ def configure_providers():
     from providers.base import ProviderType
     from providers.custom import CustomProvider
     from providers.gemini import GeminiModelProvider
-    from providers.openai import OpenAIModelProvider
+    from providers.openai_provider import OpenAIModelProvider
     from providers.openrouter import OpenRouterProvider
     from providers.xai import XAIModelProvider
     from utils.model_restrictions import get_restriction_service
@@ -330,6 +330,7 @@ async def handle_list_tools() -> list[Tool]:
         List of Tool objects representing all available tools
     """
     logger.debug("MCP client requested tool list")
+    logger.debug(f"TOOLS registry contains {len(TOOLS)} tools: {list(TOOLS.keys())}")
     tools = []
 
     # Add all registered AI-powered tools from the TOOLS registry

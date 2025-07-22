@@ -23,7 +23,7 @@ from pydantic import Field
 
 from config import TEMPERATURE_ANALYTICAL
 from systemprompts import REFACTOR_PROMPT
-from utils.file_utils import translate_file_paths
+from utils.file_utils import read_file_content
 
 from .base import BaseTool, ToolRequest
 
@@ -295,9 +295,9 @@ class RefactorTool(BaseTool):
             logger.info(f"[REFACTOR] All {len(style_examples)} style examples already in conversation history")
             return "", ""
 
-        # Translate file paths for Docker environment before accessing files
-        translated_examples = translate_file_paths(examples_to_process)
-        logger.debug(f"[REFACTOR] Translated {len(examples_to_process)} file paths for container access")
+        # Use the file paths directly (no translation needed anymore)
+        translated_examples = examples_to_process
+        logger.debug(f"[REFACTOR] Processing {len(examples_to_process)} style example files")
 
         # Calculate token budget for style examples (20% of available tokens, or fallback)
         if available_tokens:

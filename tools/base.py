@@ -37,7 +37,7 @@ from utils.conversation_memory import (
     get_thread,
 )
 from utils.file_storage import FileReference, FileStorage
-from utils.file_utils import read_file_content, read_files, translate_path_for_environment
+from utils.file_utils import read_file_content, read_files
 
 from .models import SPECIAL_STATUS_MODELS, ContinuationOffer, ToolOutput
 
@@ -1160,15 +1160,12 @@ When recommending searches, be specific about what information you need and why 
         updated_files = []
 
         for file_path in files:
-            # Translate path for current environment (Docker/direct)
-            translated_path = translate_path_for_environment(file_path)
-
             # Check if the filename is exactly "prompt.txt"
             # This ensures we don't match files like "myprompt.txt" or "prompt.txt.bak"
-            if os.path.basename(translated_path) == "prompt.txt":
+            if os.path.basename(file_path) == "prompt.txt":
                 try:
                     # Read prompt.txt content and extract just the text
-                    content, _ = read_file_content(translated_path)
+                    content, _ = read_file_content(file_path)
                     # Extract the content between the file markers
                     if "--- BEGIN FILE:" in content and "--- END FILE:" in content:
                         lines = content.split("\n")
@@ -1872,7 +1869,7 @@ When recommending searches, be specific about what information you need and why 
             elif "gpt" in model_name.lower() or "o3" in model_name.lower():
                 # Register OpenAI provider if not already registered
                 from providers.base import ProviderType
-                from providers.openai import OpenAIModelProvider
+                from providers.openai_provider import OpenAIModelProvider
 
                 ModelProviderRegistry.register_provider(ProviderType.OPENAI, OpenAIModelProvider)
                 provider = ModelProviderRegistry.get_provider(ProviderType.OPENAI)
