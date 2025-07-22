@@ -145,6 +145,12 @@ MCP_PROMPT_SIZE_LIMIT = _calculate_mcp_prompt_limit()
 # Leave empty for default language (English)
 LOCALE = os.getenv("LOCALE", "")
 
+# OpenAI Flex Processing configuration
+# When enabled (default), automatically uses OpenAI's Flex Processing service tier
+# for o3 and o3-mini models to reduce costs by ~50% with slightly higher latency
+# Set to "0" or "false" to disable and use standard tier
+OPENAI_USE_FLEX_PROCESSING = os.getenv("OPENAI_USE_FLEX_PROCESSING", "1").lower() not in ["0", "false", "no"]
+
 # Threading configuration
 # Simple in-memory conversation threading for stateless MCP environment
 # Conversations persist only during the Claude session

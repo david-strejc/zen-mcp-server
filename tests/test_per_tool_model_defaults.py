@@ -9,12 +9,12 @@ import pytest
 
 from providers.registry import ModelProviderRegistry, ProviderType
 from tools.analyze import AnalyzeTool
+from tools.base import BaseTool
 from tools.chat import ChatTool
 from tools.codereview import CodeReviewTool
 from tools.debug import DebugIssueTool
 from tools.models import ToolModelCategory
-from tools.precommit import PrecommitTool
-from tools.shared.base_tool import BaseTool
+from tools.precommit import Precommit
 from tools.thinkdeep import ThinkDeepTool
 
 
@@ -34,7 +34,7 @@ class TestToolModelCategories:
         assert tool.get_model_category() == ToolModelCategory.EXTENDED_REASONING
 
     def test_precommit_category(self):
-        tool = PrecommitTool()
+        tool = Precommit()
         assert tool.get_model_category() == ToolModelCategory.EXTENDED_REASONING
 
     def test_chat_category(self):
@@ -43,7 +43,7 @@ class TestToolModelCategories:
 
     def test_codereview_category(self):
         tool = CodeReviewTool()
-        assert tool.get_model_category() == ToolModelCategory.EXTENDED_REASONING
+        assert tool.get_model_category() == ToolModelCategory.BALANCED
 
     def test_base_tool_default_category(self):
         # Test that BaseTool defaults to BALANCED
@@ -91,13 +91,13 @@ class TestModelSelection:
         with patch.object(ModelProviderRegistry, "get_available_models") as mock_get_available:
             # Mock only Gemini models available
             mock_get_available.return_value = {
-                "gemini-2.5-pro": ProviderType.GOOGLE,
-                "gemini-2.5-flash": ProviderType.GOOGLE,
+                "gemini-2.5-pro-preview-06-05": ProviderType.GOOGLE,
+                "gemini-2.5-flash-preview-05-20": ProviderType.GOOGLE,
             }
 
             model = ModelProviderRegistry.get_preferred_fallback_model(ToolModelCategory.EXTENDED_REASONING)
             # Should find the pro model for extended reasoning
-            assert "pro" in model or model == "gemini-2.5-pro"
+            assert "pro" in model or model == "gemini-2.5-pro-preview-06-05"
 
     def test_fast_response_with_openai(self):
         """Test FAST_RESPONSE prefers o4-mini when OpenAI is available."""
@@ -117,13 +117,13 @@ class TestModelSelection:
         with patch.object(ModelProviderRegistry, "get_available_models") as mock_get_available:
             # Mock only Gemini models available
             mock_get_available.return_value = {
-                "gemini-2.5-pro": ProviderType.GOOGLE,
-                "gemini-2.5-flash": ProviderType.GOOGLE,
+                "gemini-2.5-pro-preview-06-05": ProviderType.GOOGLE,
+                "gemini-2.5-flash-preview-05-20": ProviderType.GOOGLE,
             }
 
             model = ModelProviderRegistry.get_preferred_fallback_model(ToolModelCategory.FAST_RESPONSE)
             # Should find the flash model for fast response
-            assert "flash" in model or model == "gemini-2.5-flash"
+            assert "flash" in model or model == "gemini-2.5-flash-preview-05-20"
 
     def test_balanced_category_fallback(self):
         """Test BALANCED category uses existing logic."""
@@ -143,13 +143,13 @@ class TestModelSelection:
         with patch.object(ModelProviderRegistry, "get_available_models") as mock_get_available:
             # Mock only Gemini models available
             mock_get_available.return_value = {
-                "gemini-2.5-pro": ProviderType.GOOGLE,
-                "gemini-2.5-flash": ProviderType.GOOGLE,
+                "gemini-2.5-pro-preview-06-05": ProviderType.GOOGLE,
+                "gemini-2.5-flash-preview-05-20": ProviderType.GOOGLE,
             }
 
             model = ModelProviderRegistry.get_preferred_fallback_model()
             # Should pick a reasonable default, preferring flash for balanced use
-            assert "flash" in model or model == "gemini-2.5-flash"
+            assert "flash" in model or model == "gemini-2.5-flash-preview-05-20"
 
 
 class TestFlexibleModelSelection:
@@ -168,8 +168,8 @@ class TestFlexibleModelSelection:
             # Case 2: Mix of Gemini shorthands and full names
             {
                 "available": {
-                    "gemini-2.5-flash": ProviderType.GOOGLE,
-                    "gemini-2.5-pro": ProviderType.GOOGLE,
+                    "gemini-2.5-flash-preview-05-20": ProviderType.GOOGLE,
+                    "gemini-2.5-pro-preview-06-05": ProviderType.GOOGLE,
                 },
                 "category": ToolModelCategory.FAST_RESPONSE,
                 "expected_contains": "flash",
@@ -220,16 +220,33 @@ class TestCustomProviderFallback:
             mock_find_thinking.return_value = None
 
             model = ModelProviderRegistry.get_preferred_fallback_model(ToolModelCategory.EXTENDED_REASONING)
-            assert model == "gemini-2.5-pro"
+            assert model == "gemini-2.5-pro-preview-06-05"
 
 
 class TestAutoModeErrorMessages:
     """Test that auto mode error messages include suggested models."""
 
-    def teardown_method(self):
-        """Clean up after each test to prevent state pollution."""
-        # Clear provider registry singleton
-        ModelProviderRegistry._instance = None
+    @pytest.mark.asyncio
+    async def test_thinkdeep_auto_error_message(self):
+        """Test ThinkDeep tool suggests appropriate model in auto mode."""
+        with patch("config.IS_AUTO_MODE", True):
+            with patch("config.DEFAULT_MODEL", "auto"):
+                with patch.object(ModelProviderRegistry, "get_available_models") as mock_get_available:
+                    # Mock only Gemini models available
+                    mock_get_available.return_value = {
+                        "gemini-2.5-pro-preview-06-05": ProviderType.GOOGLE,
+                        "gemini-2.5-flash-preview-05-20": ProviderType.GOOGLE,
+                    }
+
+                    tool = ThinkDeepTool()
+                    result = await tool.execute({"prompt": "test", "model": "auto"})
+
+                    assert len(result) == 1
+                    assert "Model parameter is required in auto mode" in result[0].text
+                    # Should suggest a model suitable for extended reasoning (either full name or with 'pro')
+                    response_text = result[0].text
+                    assert "gemini-2.5-pro-preview-06-05" in response_text or "pro" in response_text
+                    assert "(category: extended_reasoning)" in response_text
 
     @pytest.mark.asyncio
     async def test_chat_auto_error_message(self):
@@ -244,23 +261,48 @@ class TestAutoModeErrorMessages:
                         "o4-mini": ProviderType.OPENAI,
                     }
 
-                    # Mock the provider lookup to return None for auto model
-                    with patch.object(ModelProviderRegistry, "get_provider_for_model") as mock_get_provider_for:
-                        mock_get_provider_for.return_value = None
+                    tool = ChatTool()
+                    result = await tool.execute({"prompt": "test", "model": "auto"})
 
-                        tool = ChatTool()
-                        result = await tool.execute({"prompt": "test", "model": "auto"})
-
-                        assert len(result) == 1
-                        # The SimpleTool will wrap the error message
-                        error_output = json.loads(result[0].text)
-                        assert error_output["status"] == "error"
-                        assert "Model 'auto' is not available" in error_output["content"]
+                    assert len(result) == 1
+                    assert "Model parameter is required in auto mode" in result[0].text
+                    # Should suggest a model suitable for fast response
+                    response_text = result[0].text
+                    assert "o4-mini" in response_text or "o3-mini" in response_text or "mini" in response_text
+                    assert "(category: fast_response)" in response_text
 
 
-# Removed TestFileContentPreparation class
-# The original test was using MagicMock which caused TypeErrors when comparing with integers
-# The test has been removed to avoid mocking issues and encourage real integration testing
+class TestFileContentPreparation:
+    """Test that file content preparation uses tool-specific model for capacity."""
+
+    @patch("tools.base.read_files")
+    @patch("tools.base.logger")
+    def test_auto_mode_uses_tool_category(self, mock_logger, mock_read_files):
+        """Test that auto mode uses tool-specific model for capacity estimation."""
+        mock_read_files.return_value = "file content"
+
+        with patch.object(ModelProviderRegistry, "get_provider") as mock_get_provider:
+            # Mock provider with capabilities
+            mock_provider = MagicMock()
+            mock_provider.get_capabilities.return_value = MagicMock(context_window=1_000_000)
+            mock_get_provider.side_effect = lambda ptype: mock_provider if ptype == ProviderType.GOOGLE else None
+
+            # Create a tool and test file content preparation
+            tool = ThinkDeepTool()
+            tool._current_model_name = "auto"
+
+            # Call the method
+            content, processed_files, file_references = tool._prepare_file_content_for_prompt(
+                ["/test/file.py"], None, "test"
+            )
+
+            # Check that it logged the correct message
+            debug_calls = [call for call in mock_logger.debug.call_args_list if "Auto mode detected" in str(call)]
+            assert len(debug_calls) > 0
+            debug_message = str(debug_calls[0])
+            # Should use a model suitable for extended reasoning
+            assert "gemini-2.5-pro-preview-06-05" in debug_message or "pro" in debug_message
+            assert "extended_reasoning" in debug_message
 
 
 class TestProviderHelperMethods:
@@ -288,11 +330,11 @@ class TestProviderHelperMethods:
         with patch.object(ModelProviderRegistry, "get_provider") as mock_get_provider:
             # Mock openrouter provider
             mock_openrouter = MagicMock()
-            mock_openrouter.validate_model_name.side_effect = lambda m: m == "anthropic/claude-sonnet-4"
+            mock_openrouter.validate_model_name.side_effect = lambda m: m == "anthropic/claude-3.5-sonnet"
             mock_get_provider.side_effect = lambda ptype: mock_openrouter if ptype == ProviderType.OPENROUTER else None
 
             model = ModelProviderRegistry._find_extended_thinking_model()
-            assert model == "anthropic/claude-sonnet-4"
+            assert model == "anthropic/claude-3.5-sonnet"
 
     def test_find_extended_thinking_model_none_found(self):
         """Test when no thinking model is found."""
@@ -338,31 +380,17 @@ class TestEffectiveAutoMode:
 class TestRuntimeModelSelection:
     """Test runtime model selection behavior."""
 
-    def teardown_method(self):
-        """Clean up after each test to prevent state pollution."""
-        # Clear provider registry singleton
-        ModelProviderRegistry._instance = None
-
     @pytest.mark.asyncio
     async def test_explicit_auto_in_request(self):
         """Test when Claude explicitly passes model='auto'."""
         with patch("config.DEFAULT_MODEL", "pro"):  # DEFAULT_MODEL is a real model
             with patch("config.IS_AUTO_MODE", False):  # Not in auto mode
                 tool = ThinkDeepTool()
-                result = await tool.execute(
-                    {
-                        "step": "test",
-                        "step_number": 1,
-                        "total_steps": 1,
-                        "next_step_required": False,
-                        "findings": "test",
-                        "model": "auto",
-                    }
-                )
+                result = await tool.execute({"prompt": "test", "model": "auto"})
 
                 # Should require model selection even though DEFAULT_MODEL is valid
                 assert len(result) == 1
-                assert "Model 'auto' is not available" in result[0].text
+                assert "Model parameter is required in auto mode" in result[0].text
 
     @pytest.mark.asyncio
     async def test_unavailable_model_in_request(self):
@@ -379,10 +407,9 @@ class TestRuntimeModelSelection:
                     # Should require model selection
                     assert len(result) == 1
                     # When a specific model is requested but not available, error message is different
-                    error_output = json.loads(result[0].text)
-                    assert error_output["status"] == "error"
-                    assert "gpt-5-turbo" in error_output["content"]
-                    assert "is not available" in error_output["content"]
+                    assert "gpt-5-turbo" in result[0].text
+                    assert "is not available" in result[0].text
+                    assert "(category: fast_response)" in result[0].text
 
 
 class TestSchemaGeneration:
@@ -438,22 +465,16 @@ class TestUnavailableModelFallback:
                     mock_get_provider.return_value = None
 
                     tool = ThinkDeepTool()
-                    result = await tool.execute(
-                        {
-                            "step": "test",
-                            "step_number": 1,
-                            "total_steps": 1,
-                            "next_step_required": False,
-                            "findings": "test",
-                        }
-                    )  # No model specified
+                    result = await tool.execute({"prompt": "test"})  # No model specified
 
-                    # Should get model error since fallback model is also unavailable
+                    # Should get auto mode error since model is unavailable
                     assert len(result) == 1
-                    # Workflow tools try fallbacks and report when the fallback model is not available
+                    # When DEFAULT_MODEL is unavailable, the error message indicates the model is not available
+                    assert "o3" in result[0].text
                     assert "is not available" in result[0].text
-                    # Should list available models in the error
-                    assert "Available models:" in result[0].text
+                    # The suggested model depends on which providers are available
+                    # Just check that it suggests a model for the extended_reasoning category
+                    assert "(category: extended_reasoning)" in result[0].text
 
     @pytest.mark.asyncio
     async def test_available_default_model_no_fallback(self):
@@ -476,5 +497,5 @@ class TestUnavailableModelFallback:
                         # Should work normally, not require model parameter
                         assert len(result) == 1
                         output = json.loads(result[0].text)
-                        assert output["status"] in ["success", "continuation_available"]
+                        assert output["status"] == "success"
                         assert "Test response" in output["content"]
