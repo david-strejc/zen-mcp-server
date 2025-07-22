@@ -565,10 +565,21 @@ def build_conversation_history(context: ThreadContext, model_context=None, read_
                         logger.debug(f"[FILES] File {file_path} has empty content - skipping")
                 except Exception as e:
                     # Skip files that can't be read but log the failure
-                    logger.warning(
-                        f"Failed to embed file in conversation history: {file_path} - {type(e).__name__}: {e}"
-                    )
-                    logger.debug(f"[FILES] Failed to read file {file_path} - {type(e).__name__}: {e}")
+                    error_type = type(e).__name__
+                    error_msg = str(e)
+                    
+                    # Check if this is a timeout error
+                    if "timed out" in error_msg.lower():
+                        logger.error(
+                            f"File read timeout in conversation history: {file_path} - "
+                            f"File may be on unresponsive filesystem or network mount"
+                        )
+                    else:
+                        logger.warning(
+                            f"Failed to embed file in conversation history: {file_path} - {error_type}: {error_msg}"
+                        )
+                    
+                    logger.debug(f"[FILES] Failed to read file {file_path} - {error_type}: {error_msg}")
                     continue
 
             if file_contents:
