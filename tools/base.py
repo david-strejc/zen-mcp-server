@@ -556,6 +556,7 @@ class BaseTool(ABC):
         remaining_budget: Optional[int] = None,
         arguments: Optional[dict] = None,
         file_handling_mode: Optional[str] = None,
+        model_context: Optional[Any] = None,
     ) -> tuple[str, list[str], Optional[list[FileReference]]]:
         """
         Centralized file processing for tool prompts.
@@ -582,6 +583,9 @@ class BaseTool(ABC):
                 - actually_processed_files: List of individual file paths that were actually read and embedded
                   (directories are expanded to individual files)
                 - file_references: List of FileReference objects if mode is "summary" or "reference"
+
+        Note: This method now separates image files and stores them in self._current_images
+              for use by the execute method when calling generate_content
         """
         if not request_files:
             return "", [], None
@@ -725,9 +729,25 @@ class BaseTool(ABC):
         content_parts = []
         actually_processed_files = []
 
-        # Read content of new files only
-        if files_to_embed:
-            logger.debug(f"{self.name} tool embedding {len(files_to_embed)} new files: {', '.join(files_to_embed)}")
+        # Separate images from text files
+        from utils.file_types import IMAGE_EXTENSIONS
+
+        text_files = []
+        image_files = []
+
+        for file_path in files_to_embed:
+            if any(file_path.lower().endswith(ext) for ext in IMAGE_EXTENSIONS):
+                image_files.append(file_path)
+            else:
+                text_files.append(file_path)
+
+        # Store images for later use by execute method
+        self._current_images = image_files
+        logger.debug(f"[FILES] {self.name}: Separated {len(text_files)} text files and {len(image_files)} image files")
+
+        # Read content of new text files only (images are handled separately)
+        if text_files:
+            logger.debug(f"{self.name} tool embedding {len(text_files)} new text files: {', '.join(text_files)}")
             logger.debug(
                 f"[FILES] {self.name}: Starting file embedding with token budget {effective_max_tokens + reserve_tokens:,}"
             )
@@ -735,13 +755,13 @@ class BaseTool(ABC):
                 # Before calling read_files, expand directories to get individual file paths
                 from utils.file_utils import expand_paths
 
-                expanded_files = expand_paths(files_to_embed)
+                expanded_files = expand_paths(text_files)
                 logger.debug(
-                    f"[FILES] {self.name}: Expanded {len(files_to_embed)} paths to {len(expanded_files)} individual files"
+                    f"[FILES] {self.name}: Expanded {len(text_files)} text file paths to {len(expanded_files)} individual files"
                 )
 
                 file_content = read_files(
-                    files_to_embed,
+                    text_files,
                     max_tokens=effective_max_tokens + reserve_tokens,
                     reserve_tokens=reserve_tokens,
                     include_line_numbers=self.wants_line_numbers_by_default(),
@@ -769,6 +789,16 @@ class BaseTool(ABC):
                 raise
         else:
             logger.debug(f"[FILES] {self.name}: No files to embed after filtering")
+
+        # Add note about image files if any
+        if image_files:
+            image_note = "\n\n--- IMAGE FILES ---\n"
+            image_note += f"The following {len(image_files)} image files will be processed by the vision model:\n"
+            for img in image_files:
+                image_note += f"  - {img}\n"
+            image_note += "--- END IMAGE FILES ---\n"
+            content_parts.append(image_note)
+            actually_processed_files.extend(image_files)
 
         # Generate note about files already in conversation history
         if continuation_id and len(files_to_embed) < len(request_files):
@@ -1361,12 +1391,16 @@ When recommending searches, be specific about what information you need and why 
                 generation_kwargs["service_tier"] = "flex"
                 logger.info(f"Using Flex Processing service tier for OpenAI model {model_name}")
 
+            # Get images if any were separated during file processing
+            images = getattr(self, "_current_images", None)
+
             model_response = provider.generate_content(
                 prompt=prompt,
                 model_name=model_name,
                 system_prompt=system_prompt,
                 temperature=temperature,
                 thinking_mode=thinking_mode if provider.supports_thinking_mode(model_name) else None,
+                images=images,
                 **generation_kwargs,
             )
 
@@ -1427,6 +1461,7 @@ When recommending searches, be specific about what information you need and why 
                         system_prompt=system_prompt,
                         temperature=temperature,
                         thinking_mode=thinking_mode if provider.supports_thinking_mode(model_name) else None,
+                        images=images,
                     )
 
                     if retry_response.content:

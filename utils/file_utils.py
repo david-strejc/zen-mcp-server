@@ -477,24 +477,23 @@ def read_file_content(
         # Read the file with UTF-8 encoding, replacing invalid characters
         # This ensures we can handle files with mixed encodings
         logger.debug(f"[FILES] Reading file content for {file_path}")
-        
+
         # Add timeout protection for file reading to prevent hanging on unresponsive filesystems
         # Use platform-specific approach
-        import sys
         import platform
-        
+
         if platform.system() != "Windows":
             # Unix-based systems support SIGALRM
-            import signal
             import errno
-            
+            import signal
+
             def timeout_handler(signum, frame):
-                raise IOError(errno.ETIMEDOUT, f"File read timed out after 30 seconds: {file_path}")
-            
+                raise OSError(errno.ETIMEDOUT, f"File read timed out after 30 seconds: {file_path}")
+
             # Set up timeout (30 seconds should be more than enough for any reasonable file)
             old_handler = signal.signal(signal.SIGALRM, timeout_handler)
             signal.alarm(30)
-            
+
             try:
                 with open(path, encoding="utf-8", errors="replace") as f:
                     file_content = f.read()
@@ -504,12 +503,12 @@ def read_file_content(
                 signal.signal(signal.SIGALRM, old_handler)
         else:
             # Windows doesn't support SIGALRM, use threading-based timeout
-            import threading
             import queue
-            
+            import threading
+
             result_queue = queue.Queue()
             exception_queue = queue.Queue()
-            
+
             def read_file_thread():
                 try:
                     with open(path, encoding="utf-8", errors="replace") as f:
@@ -517,25 +516,25 @@ def read_file_content(
                     result_queue.put(content)
                 except Exception as e:
                     exception_queue.put(e)
-            
+
             thread = threading.Thread(target=read_file_thread)
             thread.daemon = True
             thread.start()
             thread.join(timeout=30)  # 30 second timeout
-            
+
             if thread.is_alive():
                 # Thread is still running after timeout
-                raise IOError(f"File read timed out after 30 seconds: {file_path}")
-            
+                raise OSError(f"File read timed out after 30 seconds: {file_path}")
+
             # Check for exceptions
             if not exception_queue.empty():
                 raise exception_queue.get()
-            
+
             # Get the result
             if not result_queue.empty():
                 file_content = result_queue.get()
             else:
-                raise IOError(f"File read failed: {file_path}")
+                raise OSError(f"File read failed: {file_path}")
 
         logger.debug(f"[FILES] Successfully read {len(file_content)} characters from {file_path}")
 

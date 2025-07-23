@@ -98,6 +98,7 @@ class ConversationTurn(BaseModel):
         content: The actual message content/response
         timestamp: ISO timestamp when this turn was created
         files: List of file paths referenced in this specific turn
+        images: List of image file paths for vision models (PNG, JPEG, GIF, WebP)
         tool_name: Which tool generated this turn (for cross-tool tracking)
         model_provider: Provider used (e.g., "google", "openai")
         model_name: Specific model used (e.g., "gemini-2.5-flash-preview-05-20", "o3-mini")
@@ -108,6 +109,7 @@ class ConversationTurn(BaseModel):
     content: str
     timestamp: str
     files: Optional[list[str]] = None  # Files referenced in this turn
+    images: Optional[list[str]] = None  # Image files for vision models
     tool_name: Optional[str] = None  # Tool used for this turn
     model_provider: Optional[str] = None  # Model provider (google, openai, etc)
     model_name: Optional[str] = None  # Specific model used
@@ -256,6 +258,7 @@ def add_turn(
     role: str,
     content: str,
     files: Optional[list[str]] = None,
+    images: Optional[list[str]] = None,
     tool_name: Optional[str] = None,
     model_provider: Optional[str] = None,
     model_name: Optional[str] = None,
@@ -273,6 +276,7 @@ def add_turn(
         role: "user" (Claude) or "assistant" (Gemini/O3/etc)
         content: The actual message/response content
         files: Optional list of files referenced in this turn
+        images: Optional list of image files for vision models
         tool_name: Name of the tool adding this turn (for attribution)
         model_provider: Provider used (e.g., "google", "openai")
         model_name: Specific model used (e.g., "gemini-2.5-flash-preview-05-20", "o3-mini")
@@ -310,6 +314,7 @@ def add_turn(
         content=content,
         timestamp=datetime.now(timezone.utc).isoformat(),
         files=files,  # Preserved for cross-tool file context
+        images=images,  # Preserved for vision model context
         tool_name=tool_name,  # Track which tool generated this turn
         model_provider=model_provider,  # Track model provider
         model_name=model_name,  # Track specific model
@@ -460,12 +465,20 @@ def build_conversation_history(context: ThreadContext, model_context=None, read_
             all_turns.extend(thread.turns)
             total_turns += len(thread.turns)
 
-            # Collect files from this thread
+            # Collect files and images from this thread
             for turn in thread.turns:
                 if turn.files:
                     all_files_set.update(turn.files)
 
         all_files = list(all_files_set)
+
+        # Also collect images from all threads
+        all_images_set = set()
+        for thread in chain:
+            for turn in thread.turns:
+                if turn.images:
+                    all_images_set.update(turn.images)
+        all_images = list(all_images_set)
         logger.debug(f"[THREAD] Built history from {len(chain)} threads with {total_turns} total turns")
     else:
         # Single thread, no parent chain
@@ -473,10 +486,19 @@ def build_conversation_history(context: ThreadContext, model_context=None, read_
         total_turns = len(context.turns)
         all_files = get_conversation_file_list(context)
 
+        # Also collect images from turns
+        all_images_set = set()
+        for turn in context.turns:
+            if turn.images:
+                all_images_set.update(turn.images)
+        all_images = list(all_images_set)
+
     if not all_turns:
         return "", 0
 
-    logger.debug(f"[FILES] Found {len(all_files)} unique files in conversation history")
+    logger.debug(
+        f"[FILES] Found {len(all_files)} unique files and {len(all_images)} unique images in conversation history"
+    )
 
     # Get model-specific token allocation early (needed for both files and turns)
     if model_context is None:
@@ -567,7 +589,7 @@ def build_conversation_history(context: ThreadContext, model_context=None, read_
                     # Skip files that can't be read but log the failure
                     error_type = type(e).__name__
                     error_msg = str(e)
-                    
+
                     # Check if this is a timeout error
                     if "timed out" in error_msg.lower():
                         logger.error(
@@ -578,7 +600,7 @@ def build_conversation_history(context: ThreadContext, model_context=None, read_
                         logger.warning(
                             f"Failed to embed file in conversation history: {file_path} - {error_type}: {error_msg}"
                         )
-                    
+
                     logger.debug(f"[FILES] Failed to read file {file_path} - {error_type}: {error_msg}")
                     continue
 
@@ -659,6 +681,11 @@ def build_conversation_history(context: ThreadContext, model_context=None, read_
         # (the actual contents are already embedded above)
         if turn.files:
             turn_parts.append(f"Files used in this turn: {', '.join(turn.files)}")
+            turn_parts.append("")  # Empty line for readability
+
+        # Add images context if present
+        if turn.images:
+            turn_parts.append(f"Images used in this turn: {', '.join(turn.images)}")
             turn_parts.append("")  # Empty line for readability
 
         # Add the actual content

@@ -158,18 +158,15 @@ MODEL_CAPABILITIES_DESC = {
     # Gemini models
     "gemini-2.0-flash": "Fast, versatile model for general tasks with solid reasoning",
     "gemini-2.0-flash-lite": "Ultrafast, lightweight model for simple tasks",
-    
     # OpenAI o3 models
     "o3": "Advanced reasoning model with strong logical capabilities",
     "o3-mini": "Balanced reasoning model with good speed/quality trade-off",
-    
     # XAI Grok models
     "grok-3": "State-of-the-art model with advanced capabilities",
     "grok-3-fast": "Fast version of Grok-3 for quick responses",
-    
     # Aliases for convenience
     "pro": "gemini-2.0-flash",
-    "flash": "gemini-2.0-flash", 
+    "flash": "gemini-2.0-flash",
     "flashlite": "gemini-2.0-flash-lite",
     "lite": "gemini-2.0-flash-lite",
 }

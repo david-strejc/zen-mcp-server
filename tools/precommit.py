@@ -17,7 +17,6 @@ if TYPE_CHECKING:
     from tools.models import ToolModelCategory
 
 from systemprompts import PRECOMMIT_PROMPT
-from utils.file_utils import read_file_content
 from utils.git_utils import find_git_repositories, get_git_status, run_git_command
 from utils.token_utils import estimate_tokens
 

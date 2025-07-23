@@ -4,7 +4,7 @@ import os
 from unittest.mock import Mock, patch
 
 import config
-from providers.openai import OpenAIModelProvider
+from providers.openai_provider import OpenAIModelProvider
 
 
 class TestOpenAIServiceTier:

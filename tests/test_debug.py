@@ -2,7 +2,7 @@
 Tests for the debug tool using new WorkflowTool architecture.
 """
 
-from tools.debug import DebugInvestigationRequest, DebugIssueTool
+from tools.debug import DebugIssueRequest, DebugIssueTool
 from tools.models import ToolModelCategory
 
 
@@ -22,7 +22,7 @@ class TestDebugTool:
     def test_request_validation(self):
         """Test Pydantic request model validation."""
         # Valid investigation step request
-        step_request = DebugInvestigationRequest(
+        step_request = DebugIssueRequest(
             step="Investigating null pointer exception in UserService",
             step_number=1,
             total_steps=3,
@@ -65,7 +65,7 @@ class TestDebugTool:
 
     def test_relevant_context_handling(self):
         """Test that relevant_context is handled correctly."""
-        request = DebugInvestigationRequest(
+        request = DebugIssueRequest(
             step="Test investigation",
             step_number=1,
             total_steps=2,

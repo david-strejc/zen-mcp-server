@@ -6,7 +6,7 @@ from tools.analyze import AnalyzeTool
 from tools.chat import ChatTool
 from tools.codereview import CodeReviewTool
 from tools.debug import DebugIssueTool
-from tools.precommit import PrecommitTool
+from tools.precommit import Precommit
 from tools.refactor import RefactorTool
 from tools.testgen import TestGenTool
 
@@ -23,7 +23,7 @@ class TestLineNumbersIntegration:
             DebugIssueTool(),
             RefactorTool(),
             TestGenTool(),
-            PrecommitTool(),
+            Precommit(),
         ]
 
         for tool in tools:
@@ -39,7 +39,7 @@ class TestLineNumbersIntegration:
             DebugIssueTool,
             RefactorTool,
             TestGenTool,
-            PrecommitTool,
+            Precommit,
         ]
 
         for tool_class in tools_classes:

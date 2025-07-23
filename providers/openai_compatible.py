@@ -255,7 +255,41 @@ class OpenAICompatibleProvider(ModelProvider):
         messages = []
         if system_prompt:
             messages.append({"role": "system", "content": system_prompt})
-        messages.append({"role": "user", "content": prompt})
+
+        # Handle images if provided
+        images = kwargs.get("images")
+        if images:
+            # For OpenAI vision models, we need to create a message with both text and image content
+            user_content = [{"type": "text", "text": prompt}]
+
+            # Add images to the user message
+            for image_path in images:
+                try:
+                    # Read and encode the image
+                    import base64
+                    from pathlib import Path
+
+                    with open(image_path, "rb") as img_file:
+                        image_data = base64.b64encode(img_file.read()).decode("utf-8")
+
+                    # Determine MIME type
+                    from utils.file_types import get_image_mime_type
+
+                    ext = Path(image_path).suffix.lower()
+                    mime_type = get_image_mime_type(ext)
+
+                    # Add image to content
+                    user_content.append(
+                        {"type": "image_url", "image_url": {"url": f"data:{mime_type};base64,{image_data}"}}
+                    )
+                except Exception as e:
+                    logging.warning(f"Failed to process image {image_path}: {e}")
+                    # Continue with other images
+
+            messages.append({"role": "user", "content": user_content})
+        else:
+            # No images, just text
+            messages.append({"role": "user", "content": prompt})
 
         # Prepare completion parameters
         completion_params = {

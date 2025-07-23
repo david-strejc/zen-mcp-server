@@ -21,7 +21,6 @@ from pydantic import Field
 
 from config import TEMPERATURE_ANALYTICAL
 from systemprompts import TESTGEN_PROMPT
-from utils.file_utils import read_file_content
 
 from .base import BaseTool, ToolRequest
 
