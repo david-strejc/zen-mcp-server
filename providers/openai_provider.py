@@ -122,8 +122,8 @@ class OpenAIModelProvider(OpenAICompatibleProvider):
             supports_json_mode=True,
             supports_images=True,  # GPT-5 supports vision
             max_image_size_mb=20.0,  # 20MB per OpenAI docs
-            supports_temperature=True,  # GPT-5 supports temperature parameter
-            temperature_constraint=create_temperature_constraint("range"),
+            supports_temperature=True,  # GPT-5 requires temperature=1.0
+            temperature_constraint=create_temperature_constraint("fixed"),
             description="GPT-5 (400K context) - State-of-the-art coding and agentic tasks, strongest reasoning",
             aliases=["gpt5"],
         ),
@@ -140,8 +140,8 @@ class OpenAIModelProvider(OpenAICompatibleProvider):
             supports_json_mode=True,
             supports_images=True,  # GPT-5 mini supports vision
             max_image_size_mb=20.0,  # 20MB per OpenAI docs
-            supports_temperature=True,  # GPT-5 mini supports temperature parameter
-            temperature_constraint=create_temperature_constraint("range"),
+            supports_temperature=True,  # GPT-5 mini requires temperature=1.0
+            temperature_constraint=create_temperature_constraint("fixed"),
             description="GPT-5 Mini (400K context) - Balanced performance/cost, faster than GPT-5",
             aliases=["gpt5-mini", "gpt5mini"],
         ),
@@ -158,8 +158,8 @@ class OpenAIModelProvider(OpenAICompatibleProvider):
             supports_json_mode=True,
             supports_images=True,  # GPT-5 nano supports vision
             max_image_size_mb=20.0,  # 20MB per OpenAI docs
-            supports_temperature=True,  # GPT-5 nano supports temperature parameter
-            temperature_constraint=create_temperature_constraint("range"),
+            supports_temperature=True,  # GPT-5 nano requires temperature=1.0
+            temperature_constraint=create_temperature_constraint("fixed"),
             description="GPT-5 Nano (400K context) - Fastest and most cost-effective, low latency",
             aliases=["gpt5-nano", "gpt5nano", "nano"],
         ),
