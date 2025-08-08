@@ -11,7 +11,8 @@ Tests the core functionality of the precommit workflow tool including:
 import pytest
 
 from tools.models import ToolModelCategory
-from tools.precommit import PrecommitRequest, PrecommitTool
+from tools.precommit import Precommit as PrecommitTool
+from tools.precommit import PrecommitRequest
 
 
 class TestPrecommitWorkflowTool:

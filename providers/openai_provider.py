@@ -109,6 +109,60 @@ class OpenAIModelProvider(OpenAICompatibleProvider):
             description="GPT-4.1 (1M context) - Advanced reasoning model with large context window",
             aliases=["gpt4.1"],
         ),
+        "gpt-5": ModelCapabilities(
+            provider=ProviderType.OPENAI,
+            model_name="gpt-5",
+            friendly_name="OpenAI (GPT-5)",
+            context_window=400_000,  # 400K total context (272K input + 128K output)
+            max_output_tokens=128_000,  # 128K max output tokens
+            supports_extended_thinking=False,
+            supports_system_prompts=True,
+            supports_streaming=True,
+            supports_function_calling=True,
+            supports_json_mode=True,
+            supports_images=True,  # GPT-5 supports vision
+            max_image_size_mb=20.0,  # 20MB per OpenAI docs
+            supports_temperature=True,  # GPT-5 supports temperature parameter
+            temperature_constraint=create_temperature_constraint("range"),
+            description="GPT-5 (400K context) - State-of-the-art coding and agentic tasks, strongest reasoning",
+            aliases=["gpt5"],
+        ),
+        "gpt-5-mini": ModelCapabilities(
+            provider=ProviderType.OPENAI,
+            model_name="gpt-5-mini",
+            friendly_name="OpenAI (GPT-5 Mini)",
+            context_window=400_000,  # 400K total context (272K input + 128K output)
+            max_output_tokens=128_000,  # 128K max output tokens
+            supports_extended_thinking=False,
+            supports_system_prompts=True,
+            supports_streaming=True,
+            supports_function_calling=True,
+            supports_json_mode=True,
+            supports_images=True,  # GPT-5 mini supports vision
+            max_image_size_mb=20.0,  # 20MB per OpenAI docs
+            supports_temperature=True,  # GPT-5 mini supports temperature parameter
+            temperature_constraint=create_temperature_constraint("range"),
+            description="GPT-5 Mini (400K context) - Balanced performance/cost, faster than GPT-5",
+            aliases=["gpt5-mini", "gpt5mini"],
+        ),
+        "gpt-5-nano": ModelCapabilities(
+            provider=ProviderType.OPENAI,
+            model_name="gpt-5-nano",
+            friendly_name="OpenAI (GPT-5 Nano)",
+            context_window=400_000,  # 400K total context (272K input + 128K output)
+            max_output_tokens=128_000,  # 128K max output tokens
+            supports_extended_thinking=False,
+            supports_system_prompts=True,
+            supports_streaming=True,
+            supports_function_calling=True,
+            supports_json_mode=True,
+            supports_images=True,  # GPT-5 nano supports vision
+            max_image_size_mb=20.0,  # 20MB per OpenAI docs
+            supports_temperature=True,  # GPT-5 nano supports temperature parameter
+            temperature_constraint=create_temperature_constraint("range"),
+            description="GPT-5 Nano (400K context) - Fastest and most cost-effective, low latency",
+            aliases=["gpt5-nano", "gpt5nano", "nano"],
+        ),
     }
 
     def __init__(self, api_key: str, **kwargs):

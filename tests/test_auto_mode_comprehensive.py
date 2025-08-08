@@ -330,6 +330,7 @@ class TestAutoModeComprehensive:
                         "flash2.5",
                         "gemini pro",
                         "gemini-pro",
+                        "lite",  # alias for gemini-2.0-flash-lite
                     ]
                 ]
                 assert (

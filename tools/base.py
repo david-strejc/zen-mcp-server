@@ -116,6 +116,18 @@ class BaseTool(ABC):
         self.default_temperature = self.get_default_temperature()
         # Initialize file storage
         self.file_storage = FileStorage()
+
+    def requires_model(self) -> bool:
+        """
+        Return whether this tool requires AI model access.
+
+        Tools that override execute() to do pure data processing (like planner)
+        should return False to skip model resolution at the MCP boundary.
+
+        Returns:
+            True by default, False for tools that don't need model access
+        """
+        return True
         # Tool initialization complete
 
     @abstractmethod
@@ -295,8 +307,11 @@ class BaseTool(ABC):
                 "IMPORTANT: Use the model specified by the user if provided, OR select the most suitable model "
                 "for this specific task based on the requirements and capabilities listed below:"
             ]
+            # Only show descriptions for available models
+            available_models = self._get_available_models()
             for model, desc in MODEL_CAPABILITIES_DESC.items():
-                model_desc_parts.append(f"- '{model}': {desc}")
+                if model in available_models:
+                    model_desc_parts.append(f"- '{model}': {desc}")
 
             if has_openrouter:
                 # Add OpenRouter models with descriptions
@@ -354,14 +369,16 @@ class BaseTool(ABC):
                         "\nOpenRouter models: If configured, you can also use ANY model available on OpenRouter."
                     )
 
+            # Get only models from enabled providers
+            available_models = self._get_available_models()
             return {
                 "type": "string",
                 "description": "\n".join(model_desc_parts),
-                "enum": list(MODEL_CAPABILITIES_DESC.keys()),
+                "enum": available_models,
             }
         else:
             # Normal mode - model is optional with default
-            available_models = list(MODEL_CAPABILITIES_DESC.keys())
+            available_models = self._get_available_models()
             models_str = ", ".join(f"'{m}'" for m in available_models)
 
             description = f"Model to use. Native models: {models_str}."
