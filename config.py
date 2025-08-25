@@ -159,12 +159,12 @@ MODEL_CAPABILITIES_DESC = {
     "gemini-2.0-flash": "Fast, versatile model for general tasks with solid reasoning",
     "gemini-2.0-flash-lite": "Ultrafast, lightweight model for simple tasks",
     "gemini-2.5-flash": "Ultra-fast model for quick analysis and rapid iterations",
-    "gemini-2.5-pro": "Deep reasoning with thinking mode for complex problems",
+    "gemini-2.5-pro": "EXTREMELY large context - best for consulting many files",
     # OpenAI o3 models
-    "o3": "Advanced reasoning model with strong logical capabilities",
+    "o3": "SMARTEST colleague for consulting algorithms",
     "o3-mini": "Balanced reasoning model with good speed/quality trade-off",
     # OpenAI GPT-5 models
-    "gpt-5": "State-of-the-art coding and agentic tasks with strongest reasoning",
+    "gpt-5": "Use if everything else is failing or for multi-consultations",
     "gpt-5-mini": "Balanced GPT-5 variant with good performance/cost ratio",
     "gpt-5-nano": "Fastest and most cost-effective GPT-5 variant",
     # XAI Grok models
