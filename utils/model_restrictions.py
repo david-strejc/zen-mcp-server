@@ -12,12 +12,20 @@ Environment Variables:
 - XAI_ALLOWED_MODELS: Comma-separated list of allowed X.AI GROK models
 - OPENROUTER_ALLOWED_MODELS: Comma-separated list of allowed OpenRouter models
 - DIAL_ALLOWED_MODELS: Comma-separated list of allowed DIAL models
+- BLOCKED_MODELS: Comma-separated list of models to block globally (overrides allows)
+- DISABLED_MODEL_PATTERNS: Comma-separated patterns to block (e.g., "claude,anthropic")
 
 Example:
     OPENAI_ALLOWED_MODELS=o3-mini,o4-mini
     GOOGLE_ALLOWED_MODELS=flash
     XAI_ALLOWED_MODELS=grok-3,grok-3-fast
     OPENROUTER_ALLOWED_MODELS=opus,sonnet,mistral
+    
+    # Block specific models
+    BLOCKED_MODELS=gpt-4,claude-opus
+    
+    # Block all models matching patterns
+    DISABLED_MODEL_PATTERNS=claude,anthropic,gpt-3
 """
 
 import logging
@@ -51,7 +59,11 @@ class ModelRestrictionService:
     def __init__(self):
         """Initialize the restriction service by loading from environment."""
         self.restrictions: dict[ProviderType, set[str]] = {}
+        self.blocked_models: set[str] = set()
+        self.disabled_patterns: list[str] = []
         self._load_from_env()
+        self._load_blocked_models()
+        self._load_disabled_patterns()
 
     def _load_from_env(self) -> None:
         """Load restrictions from environment variables."""
@@ -76,6 +88,40 @@ class ModelRestrictionService:
             else:
                 # All entries were empty after cleaning - treat as no restrictions
                 logger.debug(f"{env_var} contains only whitespace - all {provider_type.value} models allowed")
+    
+    def _load_blocked_models(self) -> None:
+        """Load globally blocked models from BLOCKED_MODELS environment variable."""
+        env_value = os.getenv("BLOCKED_MODELS")
+        
+        if env_value is None or env_value == "":
+            logger.debug("BLOCKED_MODELS not set - no models explicitly blocked")
+            return
+        
+        # Parse comma-separated list
+        for model in env_value.split(","):
+            cleaned = model.strip().lower()
+            if cleaned:
+                self.blocked_models.add(cleaned)
+        
+        if self.blocked_models:
+            logger.info(f"Globally blocked models: {sorted(self.blocked_models)}")
+    
+    def _load_disabled_patterns(self) -> None:
+        """Load disabled model patterns from DISABLED_MODEL_PATTERNS environment variable."""
+        env_value = os.getenv("DISABLED_MODEL_PATTERNS")
+        
+        if env_value is None or env_value == "":
+            logger.debug("DISABLED_MODEL_PATTERNS not set - no patterns disabled")
+            return
+        
+        # Parse comma-separated list
+        for pattern in env_value.split(","):
+            cleaned = pattern.strip().lower()
+            if cleaned:
+                self.disabled_patterns.append(cleaned)
+        
+        if self.disabled_patterns:
+            logger.info(f"Disabled model patterns: {self.disabled_patterns}")
 
     def validate_against_known_models(self, provider_instances: dict[ProviderType, any]) -> None:
         """
@@ -114,16 +160,41 @@ class ModelRestrictionService:
         """
         Check if a model is allowed for a specific provider.
 
+        This checks in order:
+        1. If model matches any disabled patterns - BLOCKED
+        2. If model is in the blocked models list - BLOCKED
+        3. If provider has allowed list and model is not in it - BLOCKED
+        4. Otherwise - ALLOWED
+
         Args:
             provider_type: The provider type (OPENAI, GOOGLE, etc.)
             model_name: The canonical model name (after alias resolution)
             original_name: The original model name before alias resolution (optional)
 
         Returns:
-            True if allowed (or no restrictions), False if restricted
+            True if allowed, False if restricted
         """
+        # Check both the resolved name and original name
+        names_to_check = {model_name.lower()}
+        if original_name and original_name.lower() != model_name.lower():
+            names_to_check.add(original_name.lower())
+        
+        # First check disabled patterns (highest priority)
+        for pattern in self.disabled_patterns:
+            for name in names_to_check:
+                if pattern in name:
+                    logger.debug(f"Model '{name}' blocked by pattern '{pattern}'")
+                    return False
+        
+        # Then check explicitly blocked models
+        for name in names_to_check:
+            if name in self.blocked_models:
+                logger.debug(f"Model '{name}' is explicitly blocked")
+                return False
+        
+        # Finally check provider-specific allowed lists
         if provider_type not in self.restrictions:
-            # No restrictions for this provider
+            # No restrictions for this provider - allowed
             return True
 
         allowed_set = self.restrictions[provider_type]
@@ -131,11 +202,6 @@ class ModelRestrictionService:
         if len(allowed_set) == 0:
             # Empty set - allowed
             return True
-
-        # Check both the resolved name and original name (if different)
-        names_to_check = {model_name.lower()}
-        if original_name and original_name.lower() != model_name.lower():
-            names_to_check.add(original_name.lower())
 
         # If any of the names is in the allowed set, it's allowed
         return any(name in allowed_set for name in names_to_check)
@@ -168,6 +234,8 @@ class ModelRestrictionService:
         """
         Filter a list of models based on restrictions.
 
+        This applies all restrictions: patterns, blocked models, and allowed lists.
+
         Args:
             provider_type: The provider type
             models: List of model names to filter
@@ -175,9 +243,7 @@ class ModelRestrictionService:
         Returns:
             Filtered list containing only allowed models
         """
-        if not self.has_restrictions(provider_type):
-            return models
-
+        # Always check is_allowed which handles all restriction types
         return [m for m in models if self.is_allowed(provider_type, m)]
 
     def get_restriction_summary(self) -> dict[str, any]:
@@ -188,11 +254,20 @@ class ModelRestrictionService:
             Dictionary with provider names and their restrictions
         """
         summary = {}
+        
+        # Provider-specific allowed models
         for provider_type, allowed_set in self.restrictions.items():
             if allowed_set:
                 summary[provider_type.value] = sorted(allowed_set)
             else:
                 summary[provider_type.value] = "none (provider disabled)"
+        
+        # Global blocks
+        if self.blocked_models:
+            summary["blocked_models"] = sorted(self.blocked_models)
+        
+        if self.disabled_patterns:
+            summary["disabled_patterns"] = self.disabled_patterns
 
         return summary
 

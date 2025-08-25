@@ -100,18 +100,26 @@ Control which models can be used from each provider for cost control, compliance
 # Format: Comma-separated list (case-insensitive, whitespace tolerant)
 # Empty or unset = all models allowed (default)
 
-# OpenAI model restrictions
-OPENAI_ALLOWED_MODELS=o3-mini,o4-mini,mini
-
-# Gemini model restrictions  
+# Provider-specific allowed models
+OPENAI_ALLOWED_MODELS=o3-mini,o4-mini,mini,gpt-5,gpt-5-mini
 GOOGLE_ALLOWED_MODELS=flash,pro
-
-# X.AI GROK model restrictions
 XAI_ALLOWED_MODELS=grok-3,grok-3-fast
-
-# OpenRouter model restrictions (affects models via custom provider)
 OPENROUTER_ALLOWED_MODELS=opus,sonnet,mistral
+DIAL_ALLOWED_MODELS=model1,model2
+
+# Block specific models globally (overrides allowed lists)
+BLOCKED_MODELS=gpt-4,claude-opus,gemini-ultra
+
+# Block all models matching patterns (highest priority)
+# This is useful for blocking entire model families
+DISABLED_MODEL_PATTERNS=claude,anthropic,gpt-3
 ```
+
+**Restriction Priority Order:**
+1. **DISABLED_MODEL_PATTERNS** - Blocks any model containing these patterns (highest priority)
+2. **BLOCKED_MODELS** - Blocks specific models by exact name
+3. **Provider ALLOWED_MODELS** - If set, only these models are allowed
+4. If no restrictions are set, all models are allowed (default)
 
 **Supported Model Names:**
 
@@ -137,16 +145,23 @@ OPENROUTER_ALLOWED_MODELS=opus,sonnet,mistral
 **Example Configurations:**
 ```env
 # Cost control - only cheap models
-OPENAI_ALLOWED_MODELS=o4-mini
+OPENAI_ALLOWED_MODELS=o4-mini,gpt-5-nano
 GOOGLE_ALLOWED_MODELS=flash
 
-# Single model standardization
-OPENAI_ALLOWED_MODELS=o4-mini
-GOOGLE_ALLOWED_MODELS=pro
+# Block all Anthropic/Claude models
+DISABLED_MODEL_PATTERNS=claude,anthropic
 
-# Balanced selection
-GOOGLE_ALLOWED_MODELS=flash,pro
-XAI_ALLOWED_MODELS=grok,grok-3-fast
+# Allow GPT-5 but block GPT-4
+OPENAI_ALLOWED_MODELS=gpt-5,gpt-5-mini,gpt-5-nano,o3-mini
+BLOCKED_MODELS=gpt-4
+
+# Enterprise compliance - no external models
+DISABLED_MODEL_PATTERNS=claude,anthropic,mistral,llama
+OPENAI_ALLOWED_MODELS=gpt-5,o3-mini
+GOOGLE_ALLOWED_MODELS=gemini-2.5-pro
+
+# Development environment - block production models
+BLOCKED_MODELS=gpt-5,gemini-2.5-pro,grok-3
 ```
 
 ### Advanced Configuration
