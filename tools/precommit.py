@@ -87,20 +87,9 @@ class Precommit(BaseTool):
 
     def get_description(self) -> str:
         return (
-            "PRECOMMIT VALIDATION FOR GIT CHANGES - ALWAYS use this tool before creating any git commit! "
-            "Comprehensive pre-commit validation that catches bugs, security issues, incomplete implementations, "
-            "and ensures changes match the original requirements. Searches all git repositories recursively and "
-            "provides deep analysis of staged/unstaged changes. Essential for code quality and preventing bugs. "
-            "Use this before committing, when reviewing changes, checking your changes, validating changes, "
-            "or when you're about to commit or ready to commit. Claude should proactively suggest using this tool "
-            "whenever the user mentions committing or when changes are complete. "
-            "When original request context is unavailable, Claude MUST think deeply about implementation intent, "
-            "analyze patterns across modifications, infer business logic and requirements from code changes, "
-            "and provide comprehensive insights about what was accomplished and completion status. "
-            "Choose thinking_mode based on changeset size: 'low' for small focused changes, "
-            "'medium' for standard commits (default), 'high' for large feature branches or complex refactoring, "
-            "'max' for critical releases or when reviewing extensive changes across multiple systems. "
-            "Note: If you're not currently using a top-tier model such as Opus 4 or above, these tools can provide enhanced capabilities."
+            "PRECOMMIT - Validate git changes before commit. "
+            "Catches bugs, security issues. Recursive repo search. "
+            "Use before any commit."
         )
 
     def get_input_schema(self) -> dict[str, Any]:

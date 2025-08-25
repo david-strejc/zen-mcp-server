@@ -75,13 +75,8 @@ class RefactorTool(BaseTool):
 
     def get_description(self) -> str:
         return (
-            "INTELLIGENT CODE REFACTORING - Analyzes code for refactoring opportunities with precise line-number guidance. "
-            "Supports four refactor types: 'codesmells' (detect anti-patterns), 'decompose' (break down large functions/classes/modules into smaller components), "
-            "'modernize' (update to modern language features), and 'organization' (improve organization and grouping of related functionality). "
-            "Provides specific, actionable refactoring steps that Claude can implement directly. "
-            "Choose thinking_mode based on codebase complexity: 'medium' for standard modules (default), "
-            "'high' for complex systems, 'max' for legacy codebases requiring deep analysis. "
-            "Note: If you're not currently using a top-tier model such as Opus 4 or above, these tools can provide enhanced capabilities."
+            "REFACTOR - Find refactoring opportunities. "
+            "Types: codesmells, decompose, modernize, organization."
         )
 
     def get_input_schema(self) -> dict[str, Any]:

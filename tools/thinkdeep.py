@@ -43,15 +43,9 @@ class ThinkDeepTool(BaseTool):
 
     def get_description(self) -> str:
         return (
-            "EXTENDED THINKING & REASONING - Your deep thinking partner for complex problems. "
-            "Use this when you need to think deeper about a problem, extend your analysis, explore alternatives, or validate approaches. "
-            "Perfect for: architecture decisions, complex bugs, performance challenges, security analysis. "
-            "I'll challenge assumptions, find edge cases, and provide alternative solutions. "
-            "IMPORTANT: Choose the appropriate thinking_mode based on task complexity - "
-            "'low' for quick analysis, 'medium' for standard problems, 'high' for complex issues (default), "
-            "'max' for extremely complex challenges requiring deepest analysis. "
-            "When in doubt, err on the side of a higher mode for truly deep thought and evaluation. "
-            "Note: If you're not currently using a top-tier model such as Opus 4 or above, these tools can provide enhanced capabilities."
+            "DEEP THINKING - Extended reasoning for complex problems. "
+            "Use for: architecture, debugging, performance, security. "
+            "Thinking modes: low/medium/high(default)/max based on complexity."
         )
 
     def get_input_schema(self) -> dict[str, Any]:
@@ -60,7 +54,7 @@ class ThinkDeepTool(BaseTool):
             "properties": {
                 "prompt": {
                     "type": "string",
-                    "description": "Your current thinking/analysis to extend and validate. IMPORTANT: Before using this tool, Claude MUST first think deeply and establish a deep understanding of the topic and question by thinking through all relevant details, context, constraints, and implications. Share these extended thoughts and ideas in the prompt so the model has comprehensive information to work with for the best analysis.",
+                    "description": "Your analysis to extend. Share your current thinking comprehensively.",
                 },
                 "model": self.get_model_field_schema(),
                 "problem_context": {

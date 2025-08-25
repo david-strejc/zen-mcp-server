@@ -36,19 +36,8 @@ class DebugIssueTool(BaseTool):
 
     def get_description(self) -> str:
         return (
-            "DEBUG & ROOT CAUSE ANALYSIS - Expert debugging for complex issues with 1M token capacity. "
-            "Use this when you need to debug code, find out why something is failing, identify root causes, "
-            "trace errors, or diagnose issues. "
-            "IMPORTANT: Share diagnostic files liberally! The model can handle up to 1M tokens, so include: "
-            "large log files, full stack traces, memory dumps, diagnostic outputs, multiple related files, "
-            "entire modules, test results, configuration files - anything that might help debug the issue. "
-            "Claude should proactively use this tool whenever debugging is needed and share comprehensive "
-            "file paths rather than snippets. Include error messages, stack traces, logs, and ALL relevant "
-            "code files as absolute paths. The more context, the better the debugging analysis. "
-            "Choose thinking_mode based on issue complexity: 'low' for simple errors, "
-            "'medium' for standard debugging (default), 'high' for complex system issues, "
-            "'max' for extremely challenging bugs requiring deepest analysis. "
-            "Note: If you're not currently using a top-tier model such as Opus 4 or above, these tools can provide enhanced capabilities."
+            "DEBUG - Root cause analysis. Share all diagnostic files, logs, traces. "
+            "1M token capacity. More context = better analysis."
         )
 
     def get_input_schema(self) -> dict[str, Any]:

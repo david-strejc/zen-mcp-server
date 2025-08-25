@@ -35,12 +35,8 @@ class AnalyzeTool(BaseTool):
 
     def get_description(self) -> str:
         return (
-            "ANALYZE FILES & CODE - General-purpose analysis for understanding code. "
-            "Supports both individual files and entire directories. "
-            "Use this when you need to analyze files, examine code, or understand specific aspects of a codebase. "
-            "Perfect for: codebase exploration, dependency analysis, pattern detection. "
-            "Always uses file paths for clean terminal output. "
-            "Note: If you're not currently using a top-tier model such as Opus 4 or above, these tools can provide enhanced capabilities."
+            "ANALYZE - General file/code analysis. Files or directories. "
+            "For exploration, dependencies, patterns."
         )
 
     def get_input_schema(self) -> dict[str, Any]:

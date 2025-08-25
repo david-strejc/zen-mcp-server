@@ -67,17 +67,9 @@ class CodeReviewTool(BaseTool):
 
     def get_description(self) -> str:
         return (
-            "PROFESSIONAL CODE REVIEW - Comprehensive analysis for bugs, security, and quality. "
-            "Supports both individual files and entire directories/projects. "
-            "Use this when you need to review code, check for issues, find bugs, or perform security audits. "
-            "ALSO use this to validate claims about code, verify code flow and logic, confirm assertions, "
-            "cross-check functionality, or investigate how code actually behaves when you need to be certain. "
-            "I'll identify issues by severity (Critical→High→Medium→Low) with specific fixes. "
-            "Supports focused reviews: security, performance, or quick checks. "
-            "Choose thinking_mode based on review scope: 'low' for small code snippets, "
-            "'medium' for standard files/modules (default), 'high' for complex systems/architectures, "
-            "'max' for critical security audits or large codebases requiring deepest analysis. "
-            "Note: If you're not currently using a top-tier model such as Opus 4 or above, these tools can provide enhanced capabilities."
+            "CODE REVIEW - Bug, security & quality analysis. "
+            "Files or directories. Issues by severity with fixes. "
+            "Review types: full/security/performance/quick."
         )
 
     def get_input_schema(self) -> dict[str, Any]:

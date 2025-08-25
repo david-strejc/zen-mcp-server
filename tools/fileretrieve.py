@@ -34,10 +34,7 @@ class FileRetrieveTool(BaseTool):
 
     def get_description(self) -> str:
         return (
-            "RETRIEVE STORED FILES - Access file content using reference IDs. "
-            "Use this tool when you need to view the full content of files that were "
-            "previously stored with summary or reference modes. Provide the reference_id "
-            "from the file_references in the tool response."
+            "FILERETRIEVE - Get stored file content by reference ID."
         )
 
     def get_input_schema(self) -> dict[str, Any]:
