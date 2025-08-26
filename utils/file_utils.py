@@ -418,7 +418,7 @@ def expand_paths(paths: list[str], extensions: Optional[set[str]] = None) -> lis
 
 
 def read_file_content(
-    file_path: str, max_size: int = 1_000_000, *, include_line_numbers: Optional[bool] = None
+    file_path: str, max_size: int = 5_000_000, *, include_line_numbers: Optional[bool] = None
 ) -> tuple[str, int]:
     """
     Read a single file and format it for inclusion in AI prompts.
@@ -429,7 +429,7 @@ def read_file_content(
 
     Args:
         file_path: Path to file (must be absolute)
-        max_size: Maximum file size to read (default 1MB to prevent memory issues)
+        max_size: Maximum file size to read (default 5MB to prevent memory issues)
         include_line_numbers: Whether to add line numbers. If None, auto-detects based on file type
 
     Returns:
@@ -822,13 +822,13 @@ def is_text_file(file_path: str) -> bool:
     return check_text_type(file_path)
 
 
-def read_file_safely(file_path: str, max_size: int = 10 * 1024 * 1024) -> Optional[str]:
+def read_file_safely(file_path: str, max_size: int = 5 * 1024 * 1024) -> Optional[str]:
     """
     Read a file with size limits and encoding handling.
 
     Args:
         file_path: Path to the file
-        max_size: Maximum file size in bytes (default 10MB)
+        max_size: Maximum file size in bytes (default 5MB)
 
     Returns:
         File content as string, or None if file too large or unreadable

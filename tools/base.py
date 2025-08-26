@@ -1422,6 +1422,15 @@ When recommending searches, be specific about what information you need and why 
             )
 
             logger.info(f"Received response from {provider.get_provider_type().value} API for {self.name}")
+            
+            # Log raw response content for debugging
+            if model_response.content:
+                logger.debug(f"[{self.name.upper()} RESPONSE] Content length: {len(model_response.content)} chars")
+                logger.debug(f"[{self.name.upper()} RESPONSE] First 500 chars: {model_response.content[:500]}...")
+                if not model_response.content.strip():
+                    logger.warning(f"[{self.name.upper()} RESPONSE] Response content is empty or whitespace only!")
+            else:
+                logger.warning(f"[{self.name.upper()} RESPONSE] No content in response object!")
 
             # Check if we fell back from flex tier
             if model_response.metadata.get("service_tier_fallback"):
@@ -1836,7 +1845,7 @@ When recommending searches, be specific about what information you need and why 
         """
         return response
 
-    def _validate_token_limit(self, text: str, context_type: str = "Context", context_window: int = 200_000) -> None:
+    def _validate_token_limit(self, text: str, context_type: str = "Context", context_window: Optional[int] = None) -> None:
         """
         Validate token limit and raise ValueError if exceeded.
 
@@ -1846,11 +1855,20 @@ When recommending searches, be specific about what information you need and why 
         Args:
             text: The text to check
             context_type: Description of what's being checked (for error message)
-            context_window: The model's context window size
+            context_window: The model's context window size (uses model's actual limit if None)
 
         Raises:
             ValueError: If text exceeds context_window
         """
+        # Use the model's actual context window if not specified
+        if context_window is None:
+            if hasattr(self, '_model_context') and self._model_context:
+                # Get the actual model's context window
+                context_window = self._model_context.capabilities.context_window
+            else:
+                # Fallback to a reasonable default for modern models
+                context_window = 1_000_000  # 1M tokens for Gemini-class models
+        
         within_limit, estimated_tokens = check_token_limit(text, context_window)
         if not within_limit:
             raise ValueError(

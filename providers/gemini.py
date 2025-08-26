@@ -226,6 +226,31 @@ class GeminiModelProvider(ModelProvider):
                     config=generation_config,
                 )
 
+                # Log raw response for debugging
+                logger.debug(f"[GEMINI RAW RESPONSE] Model: {resolved_name}")
+                logger.debug(f"[GEMINI RAW RESPONSE] Type: {type(response)}")
+                logger.debug(f"[GEMINI RAW RESPONSE] Response: {response}")
+                
+                # Log response attributes
+                if hasattr(response, '__dict__'):
+                    logger.debug(f"[GEMINI RAW RESPONSE] Response attributes: {response.__dict__}")
+                
+                # Log candidates if present
+                if hasattr(response, 'candidates'):
+                    logger.debug(f"[GEMINI RAW RESPONSE] Candidates count: {len(response.candidates) if response.candidates else 0}")
+                    if response.candidates:
+                        for i, candidate in enumerate(response.candidates):
+                            logger.debug(f"[GEMINI RAW RESPONSE] Candidate {i}: {candidate}")
+                
+                # Log text extraction
+                try:
+                    text_content = response.text
+                    logger.debug(f"[GEMINI RAW RESPONSE] Extracted text length: {len(text_content) if text_content else 0}")
+                    if not text_content:
+                        logger.warning(f"[GEMINI RAW RESPONSE] No text content in response!")
+                except Exception as e:
+                    logger.error(f"[GEMINI RAW RESPONSE] Error extracting text: {e}")
+
                 # Extract usage information if available
                 usage = self._extract_usage(response)
 
